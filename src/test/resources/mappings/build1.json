@@ -1,0 +1,19 @@
+{
+  "mappings": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "/build/1/api/json"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "duration": 1,
+          "number": 1,
+          "timestamp": 1,
+          "url": "nop"
+        }
+      }
+    }
+  ]
+}
