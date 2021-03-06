@@ -1,0 +1,35 @@
+{
+  "mappings": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "/folder/2/api/json"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "jobs": [
+            {
+              "_class": "org.jenkinsci.plugins.workflow.job.WorkflowJob",
+              "url": "/folder/2/job/11"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "url": "/folder/2/job/11/api/json"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "fullName": "nop",
+          "url": "nop",
+          "builds": []
+        }
+      }
+    }
+  ]
+}

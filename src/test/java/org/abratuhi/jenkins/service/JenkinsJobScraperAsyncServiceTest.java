@@ -9,6 +9,7 @@ import org.abratuhi.jenkins.model.Job;
 import org.junit.jupiter.api.Test;
 
 import javax.inject.Inject;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -40,15 +41,51 @@ public class JenkinsJobScraperAsyncServiceTest {
           .indefinitely();
 
     assertNotNull(job1);
-
     assertNotNull(job1.getBuilds());
-
     assertEquals(1, job1.getBuilds().size());
 
     Build build1 = job1.getBuilds().get(0);
-
     assertNotNull(build1);
-
     assertEquals(1, build1.getNumber());
+  }
+
+  @Test
+  void scrapeFolderEmptyAsync() {
+    List<Job> jobs =
+       service
+          .scrapeFolderAsync("/folder/1/api/json")
+          .await()
+          .indefinitely();
+
+    assertNotNull(jobs);
+    assertEquals(0, jobs.size());
+  }
+
+  @Test
+  void scrapeFolderWSubfolderWoJobsAsync() {
+    List<Job> jobs =
+       service
+          .scrapeFolderAsync("/folder/3/api/json")
+          .await()
+          .indefinitely();
+
+    assertNotNull(jobs);
+    assertEquals(0, jobs.size());
+  }
+
+  @Test
+  void scrapeFolderWoSubfolderWJobsAsync() {
+    List<Job> jobs =
+       service
+          .scrapeFolderAsync("/folder/2/api/json")
+          .await()
+          .indefinitely();
+
+    assertNotNull(jobs);
+    assertEquals(1, jobs.size());
+
+    Job job1 = jobs.get(0);
+    assertNotNull(job1);
+    assertEquals("nop", job1.getFullName());
   }
 }
