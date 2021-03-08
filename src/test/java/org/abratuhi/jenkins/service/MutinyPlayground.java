@@ -4,6 +4,7 @@ import io.smallrye.mutiny.Uni;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -85,5 +86,64 @@ public class MutinyPlayground {
        }).await().indefinitely();
 
     assertNotNull(result);
+  }
+
+  @Test
+  void smth2() {
+    Uni<List<Uni<List<Integer>>>> u1 =
+       Uni.createFrom().item(
+          IntStream.rangeClosed(0, 9)
+             .boxed()
+             .map(i -> Uni.createFrom().item(
+                IntStream.rangeClosed(i * 10, i * 10 + 10)
+                   .boxed()
+                   .collect(Collectors.toList())
+             ))
+             .collect(Collectors.toList())
+       );
+
+    Uni<List<Integer>> u2 = u1.flatMap(unis ->
+       Uni.combine().all().unis(unis)
+          .combinedWith(objects ->
+             (List<List<Integer>>) objects)
+          .map(lists -> lists.stream()
+             .flatMap(Collection::stream)
+             .collect(Collectors.toList()))
+    );
+
+    List<Integer> result = u2.await().indefinitely();
+
+    assertNotNull(result);
+    assertEquals(110, result.size());
+  }
+
+
+  @Test
+  void smth3() {
+    Uni<List<Uni<List<Integer>>>> u1 =
+       Uni.createFrom().item(1)
+          .map(integer ->
+             IntStream.rangeClosed(0, 9)
+                .boxed()
+                .map(i -> Uni.createFrom().item(
+                   IntStream.rangeClosed(i * 10, i * 10 + 10)
+                      .boxed()
+                      .collect(Collectors.toList())
+                ))
+                .collect(Collectors.toList())
+          );
+
+    Uni<List<Integer>> u2 = u1.flatMap(unis ->
+       Uni.combine().all().unis(unis)
+          .combinedWith(objects ->
+             ((List<List<Integer>>) objects).stream()
+                .flatMap(Collection::stream)
+                .collect(Collectors.toList()))
+    );
+
+    List<Integer> result = u2.await().indefinitely();
+
+    assertNotNull(result);
+    assertEquals(110, result.size());
   }
 }

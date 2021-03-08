@@ -9,6 +9,7 @@ import org.abratuhi.jenkins.model.Job;
 import org.junit.jupiter.api.Test;
 
 import javax.inject.Inject;
+import java.time.Duration;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -67,7 +68,7 @@ public class JenkinsJobScraperAsyncServiceTest {
        service
           .scrapeFolderAsync("/folder/3/api/json")
           .await()
-          .indefinitely();
+          .atMost(Duration.ofSeconds(5));
 
     assertNotNull(jobs);
     assertEquals(0, jobs.size());
@@ -79,7 +80,7 @@ public class JenkinsJobScraperAsyncServiceTest {
        service
           .scrapeFolderAsync("/folder/2/api/json")
           .await()
-          .indefinitely();
+          .atMost(Duration.ofSeconds(5));
 
     assertNotNull(jobs);
     assertEquals(1, jobs.size());

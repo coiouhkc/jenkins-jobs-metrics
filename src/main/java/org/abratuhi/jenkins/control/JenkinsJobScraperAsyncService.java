@@ -16,6 +16,7 @@ import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -23,6 +24,9 @@ import java.util.stream.Collectors;
 @JBossLog
 @ApplicationScoped
 public class JenkinsJobScraperAsyncService {
+  public static final String CLASS_FOLDER = "com.cloudbees.hudson.plugins.folder.Folder";
+  public static final String CLASS_JOB = "org.jenkinsci.plugins.workflow.job.WorkflowJob";
+  public static final String CLASS_BUILD = "org.jenkinsci.plugins.workflow.job.WorkflowRun";
   @Inject
   Vertx vertx;
 
@@ -54,12 +58,14 @@ public class JenkinsJobScraperAsyncService {
   }
 
   public Uni<List<Job>> scrapeRootAsync(String url) {
+    log.infov("scrapeRootAsync: {0}", url);
+
     Uni<JsonObject> jsonObjectUni = scrapeJenkinsUrlAsync(url);
 
     return Uni.combine().all().unis(
        jsonObjectUni.map(jsonObject ->
           jsonObject.getJsonArray("jobs").stream().map(o -> (JsonObject) o)
-             .filter(obj -> obj.getString("_class").equals("com.cloudbees.hudson.plugins.folder.Folder"))
+             .filter(obj -> obj.getString("_class").equals(CLASS_FOLDER))
              .map(folder -> scrapeFolderAsync(folder.getString("url") + jenkinsApiSuffix))
              .collect(Collectors.toList()))
     )
@@ -70,35 +76,45 @@ public class JenkinsJobScraperAsyncService {
   }
 
   public Uni<List<Job>> scrapeFolderAsync(String url) {
+    log.infov("scrapeFolderAsync: {0}", url);
     Uni<JsonObject> jsonObjectUni = scrapeJenkinsUrlAsync(url);
 
-    return Uni.combine().all().unis(
-       jsonObjectUni.map(jsonObject -> {
-         JsonArray jobs = jsonObject.getJsonArray("jobs");
-
-         return jobs
-            .stream().parallel()
+    Uni<List<Uni<List<Job>>>> uniListUniListJob = jsonObjectUni
+       .map(jsonObject -> {
+         JsonArray jsonArray = jsonObject.getJsonArray("jobs");
+         List<Uni<List<Job>>> listUniListJob = jsonArray.stream()
             .map(o -> (JsonObject) o)
             .map(job -> {
+              final String nextUrl = job.getString("url") + jenkinsApiSuffix;
               switch (job.getString("_class")) {
-                case "com.cloudbees.hudson.plugins.folder.Folder":
-                  return scrapeFolderAsync(job.getString("url") + jenkinsApiSuffix);
-                case "org.jenkinsci.plugins.workflow.job.WorkflowJob":
-                  return scrapeJobAsync(job.getString("url") + jenkinsApiSuffix).map(Collections::singletonList);
+                case CLASS_FOLDER:
+                  return scrapeFolderAsync(nextUrl);
+                case CLASS_JOB:
+                  return scrapeJobAsync(nextUrl)
+                     .map(Collections::singletonList);
                 default:
-                  return Uni.createFrom().item(new ArrayList<Job>());
+                  return Uni.createFrom().item((List<Job>) new ArrayList<Job>());
               }
             })
             .collect(Collectors.toList());
-       })
-    )
-       .combinedWith(listsOfJobs ->
-          listsOfJobs.stream()
-             .flatMap(listOfJob -> ((List<Job>) listOfJob).stream())
-             .collect(Collectors.toList()));
+         return listUniListJob;
+       });
+
+    Uni<List<Job>> uniListJob = uniListUniListJob.flatMap(unis ->
+       Uni.combine().all().unis(unis)
+          .combinedWith(objects ->
+             (List<List<Job>>) objects)
+          .map(lists -> lists.stream()
+             .flatMap(Collection::stream)
+             .collect(Collectors.toList()))
+    );
+
+    return uniListJob;
   }
 
   public Uni<Job> scrapeJobAsync(String url) {
+    log.infov("scrapeJobAsync: {0}", url);
+
     Uni<JsonObject> jsonObjectUni = scrapeJenkinsUrlAsync(url);
 
     Uni<List<Uni<Build>>> uniListUniBuild = jsonObjectUni
@@ -107,7 +123,7 @@ public class JenkinsJobScraperAsyncService {
              .getJsonArray("builds")
              .stream()
              .map(o -> (JsonObject) o)
-             .filter(obj -> obj.getString("_class").equals("org.jenkinsci.plugins.workflow.job.WorkflowRun"))
+             .filter(obj -> obj.getString("_class").equals(CLASS_BUILD))
              .map(build -> scrapeBuildAsync(build.getString("url") + jenkinsApiSuffix))
              .collect(Collectors.toList()));
 
@@ -132,6 +148,8 @@ public class JenkinsJobScraperAsyncService {
   }
 
   public Uni<Build> scrapeBuildAsync(String url) {
+    log.infov("scrapeBuildAsync: {0}", url);
+
     return scrapeJenkinsUrlAsync(url)
        .map(json ->
           Build.builder()

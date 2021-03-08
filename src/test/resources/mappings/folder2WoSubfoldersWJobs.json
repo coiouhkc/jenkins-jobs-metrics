@@ -11,7 +11,7 @@
           "jobs": [
             {
               "_class": "org.jenkinsci.plugins.workflow.job.WorkflowJob",
-              "url": "/folder/2/job/11"
+              "url": "/folder/2/job/21"
             }
           ]
         }
@@ -20,7 +20,7 @@
     {
       "request": {
         "method": "GET",
-        "url": "/folder/2/job/11/api/json"
+        "url": "/folder/2/job/21/api/json"
       },
       "response": {
         "status": 200,

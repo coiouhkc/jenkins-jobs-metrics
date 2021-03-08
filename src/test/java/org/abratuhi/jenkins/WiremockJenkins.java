@@ -2,9 +2,11 @@ package org.abratuhi.jenkins;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 import io.quarkus.test.common.QuarkusTestResourceLifecycleManager;
+import lombok.extern.jbosslog.JBossLog;
 
 import java.util.Map;
 
+@JBossLog
 public class WiremockJenkins implements QuarkusTestResourceLifecycleManager {
 
   private WireMockServer wireMockServer;
