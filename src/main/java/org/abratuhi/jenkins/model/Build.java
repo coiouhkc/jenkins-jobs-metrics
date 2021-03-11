@@ -16,6 +16,7 @@ public class Build {
   private long duration;
   private int number;
   private String url;
+  private String result;
 
   public String getConsoleTextUrl() {
     return url + CONSOLE_TEXT_SUFFIX;

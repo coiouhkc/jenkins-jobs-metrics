@@ -104,6 +104,7 @@ public class JenkinsJobScraperSyncService {
        .number(json.getInteger("number"))
        .timestamp(json.getLong("timestamp"))
        .url(json.getString("url"))
+       .result(json.getString("result"))
        .build();
   }
 
