@@ -28,10 +28,17 @@ public class JenkinsJobScraperSyncService {
   @ConfigProperty(name = "jenkins.base-url")
   String jenkinsBaseUrl;
 
+  @ConfigProperty(name = "jenkins.port")
+  Integer jenkinsPort;
+
+  @ConfigProperty(name = "jenkins.path")
+  String jenkinsPath;
+
+  @ConfigProperty(name = "jenkins.api-suffix", defaultValue = "/api/json")
+  String jenkinsApiSuffix;
+
   @ConfigProperty(name = "jenkins.cookie")
   String jenkinsCookie;
-
-  String apiJsonSuffix = "/api/json";
 
   private WebClient client;
 
@@ -41,8 +48,7 @@ public class JenkinsJobScraperSyncService {
        vertx,
        new WebClientOptions()
           .setDefaultHost(jenkinsBaseUrl)
-          .setDefaultPort(443)
-          .setSsl(true)
+          .setDefaultPort(jenkinsPort)
           .setTrustAll(true));
   }
 
@@ -53,7 +59,7 @@ public class JenkinsJobScraperSyncService {
 
     return jobs.stream().parallel().map(o -> (JsonObject) o)
        .filter(obj -> obj.getString("_class").equals("com.cloudbees.hudson.plugins.folder.Folder"))
-       .map(folder -> scrapeFolder(folder.getString("url") + apiJsonSuffix))
+       .map(folder -> scrapeFolder(folder.getString("url") + jenkinsApiSuffix))
        .flatMap(Collection::stream)
        .collect(Collectors.toList());
   }
@@ -68,9 +74,9 @@ public class JenkinsJobScraperSyncService {
        .map(job -> {
          switch (job.getString("_class")) {
            case "com.cloudbees.hudson.plugins.folder.Folder":
-             return scrapeFolder(job.getString("url") + apiJsonSuffix);
+             return scrapeFolder(job.getString("url") + jenkinsApiSuffix);
            case "org.jenkinsci.plugins.workflow.job.WorkflowJob":
-             return Collections.singletonList(scrapeJob(job.getString("url") + apiJsonSuffix));
+             return Collections.singletonList(scrapeJob(job.getString("url") + jenkinsApiSuffix));
            default:
              return new ArrayList<Job>();
          }
@@ -84,7 +90,7 @@ public class JenkinsJobScraperSyncService {
 
     List<Build> builds = json.getJsonArray("builds").stream().parallel().map(o -> (JsonObject) o)
        .filter(obj -> obj.getString("_class").equals("org.jenkinsci.plugins.workflow.job.WorkflowRun"))
-       .map(build -> scrapeBuild(build.getString("url") + apiJsonSuffix))
+       .map(build -> scrapeBuild(build.getString("url") + jenkinsApiSuffix))
        .collect(Collectors.toList());
 
     return Job.builder()

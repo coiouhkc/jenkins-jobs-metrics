@@ -27,6 +27,7 @@ public class JenkinsJobScraperAsyncService {
   public static final String CLASS_FOLDER = "com.cloudbees.hudson.plugins.folder.Folder";
   public static final String CLASS_JOB = "org.jenkinsci.plugins.workflow.job.WorkflowJob";
   public static final String CLASS_BUILD = "org.jenkinsci.plugins.workflow.job.WorkflowRun";
+
   @Inject
   Vertx vertx;
 
