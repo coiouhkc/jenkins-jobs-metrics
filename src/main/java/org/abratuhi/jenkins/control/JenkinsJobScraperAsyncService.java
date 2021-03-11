@@ -56,6 +56,7 @@ public class JenkinsJobScraperAsyncService {
        new WebClientOptions()
           .setDefaultHost(jenkinsBaseUrl)
           .setDefaultPort(jenkinsPort)
+          .setSsl(isHttps)
           .setTrustAll(true));
   }
 
