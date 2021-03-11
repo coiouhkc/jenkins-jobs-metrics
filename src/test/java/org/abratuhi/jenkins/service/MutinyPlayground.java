@@ -126,7 +126,7 @@ public class MutinyPlayground {
              IntStream.rangeClosed(0, 9)
                 .boxed()
                 .map(i -> Uni.createFrom().item(
-                   IntStream.rangeClosed(i * 10, i * 10 + 10)
+                   IntStream.rangeClosed(i * 10, i * 10 + 9)
                       .boxed()
                       .collect(Collectors.toList())
                 ))
@@ -144,6 +144,6 @@ public class MutinyPlayground {
     List<Integer> result = u2.await().indefinitely();
 
     assertNotNull(result);
-    assertEquals(110, result.size());
+    assertEquals(100, result.size());
   }
 }

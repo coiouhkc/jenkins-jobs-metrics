@@ -56,15 +56,7 @@ public class JenkinsJobScraperSyncService {
   }
 
   public List<Job> scrapeRoot(String url) {
-    JsonObject json = scrapeJenkinsUrl(url);
-
-    JsonArray jobs = json.getJsonArray("jobs");
-
-    return jobs.stream().parallel().map(o -> (JsonObject) o)
-       .filter(obj -> obj.getString("_class").equals("com.cloudbees.hudson.plugins.folder.Folder"))
-       .map(folder -> scrapeFolder(folder.getString("url") + jenkinsApiSuffix))
-       .flatMap(Collection::stream)
-       .collect(Collectors.toList());
+    return scrapeFolder(url);
   }
 
   public List<Job> scrapeFolder(String url) {

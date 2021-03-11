@@ -1,7 +1,6 @@
 package org.abratuhi.jenkins.control;
 
 import io.smallrye.mutiny.Uni;
-import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.client.WebClientOptions;
 import io.vertx.mutiny.core.Vertx;
@@ -15,7 +14,6 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -62,47 +60,17 @@ public class JenkinsJobScraperAsyncService {
   }
 
   public Uni<List<Job>> scrapeRootAsync(String url) {
-    log.infov("scrapeRootAsync: {0}", url);
-
-    Uni<JsonObject> jsonObjectUni = scrapeJenkinsUrlAsync(url);
-
-    return Uni.combine().all().unis(
-       jsonObjectUni.map(jsonObject ->
-          jsonObject.getJsonArray("jobs").stream().map(o -> (JsonObject) o)
-             .filter(obj -> obj.getString("_class").equals(CLASS_FOLDER))
-             .map(folder -> scrapeFolderAsync(folder.getString("url") + jenkinsApiSuffix))
-             .collect(Collectors.toList()))
-    )
-       .combinedWith(listsOfJobs ->
-          listsOfJobs.stream()
-             .flatMap(listOfJob -> ((List<Job>) listOfJob).stream())
-             .collect(Collectors.toList()));
+    return scrapeFolderAsync(url);
   }
 
   public Uni<List<Job>> scrapeFolderAsync(String url) {
-    log.infov("scrapeFolderAsync: {0}", url);
     Uni<JsonObject> jsonObjectUni = scrapeJenkinsUrlAsync(url);
 
     Uni<List<Uni<List<Job>>>> uniListUniListJob = jsonObjectUni
-       .map(jsonObject -> {
-         JsonArray jsonArray = jsonObject.getJsonArray("jobs");
-         List<Uni<List<Job>>> listUniListJob = jsonArray.stream()
-            .map(o -> (JsonObject) o)
-            .map(job -> {
-              final String nextUrl = job.getString("url") + jenkinsApiSuffix;
-              switch (job.getString("_class")) {
-                case CLASS_FOLDER:
-                  return scrapeFolderAsync(nextUrl);
-                case CLASS_JOB:
-                  return scrapeJobAsync(nextUrl)
-                     .map(Collections::singletonList);
-                default:
-                  return Uni.createFrom().item((List<Job>) new ArrayList<Job>());
-              }
-            })
-            .collect(Collectors.toList());
-         return listUniListJob;
-       });
+       .map(jsonObject -> jsonObject.getJsonArray("jobs").stream()
+          .map(o -> (JsonObject) o)
+          .map(this::mapJsonObject)
+          .collect(Collectors.toList()));
 
     Uni<List<Job>> uniListJob = uniListUniListJob.flatMap(unis ->
        Uni.combine().all().unis(unis)
@@ -116,9 +84,22 @@ public class JenkinsJobScraperAsyncService {
     return uniListJob;
   }
 
-  public Uni<Job> scrapeJobAsync(String url) {
-    log.infov("scrapeJobAsync: {0}", url);
+  private Uni<List<Job>> mapJsonObject(final JsonObject job) {
+    final String nextUrl = job.getString("url") + jenkinsApiSuffix;
+    switch (job.getString("_class")) {
+      case CLASS_FOLDER:
+        return scrapeFolderAsync(nextUrl);
+      case CLASS_JOB:
+        return scrapeJobAsync(nextUrl)
+           .map(Collections::singletonList);
+      default:
+        return Uni.createFrom().item(Collections.emptyList());
+    }
 
+//    return Uni.createFrom().item(Collections.emptyList());
+  }
+
+  public Uni<Job> scrapeJobAsync(String url) {
     Uni<JsonObject> jsonObjectUni = scrapeJenkinsUrlAsync(url);
 
     Uni<List<Uni<Build>>> uniListUniBuild = jsonObjectUni
@@ -152,8 +133,6 @@ public class JenkinsJobScraperAsyncService {
   }
 
   public Uni<Build> scrapeBuildAsync(String url) {
-    log.infov("scrapeBuildAsync: {0}", url);
-
     return scrapeJenkinsUrlAsync(url)
        .map(json ->
           Build.builder()
@@ -167,6 +146,7 @@ public class JenkinsJobScraperAsyncService {
 
   private Uni<JsonObject> scrapeJenkinsUrlAsync(String url) {
     final String sanitizedUrl = sanitizeUrl(url);
+    log.infov("scrapeJenkinsUrlAsync: {1} (was: {0})", url, sanitizedUrl);
     return client
        .get(sanitizedUrl)
        .putHeader("Cookie", jenkinsCookie)
