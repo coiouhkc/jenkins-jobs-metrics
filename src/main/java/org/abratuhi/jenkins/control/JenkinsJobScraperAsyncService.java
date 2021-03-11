@@ -95,8 +95,6 @@ public class JenkinsJobScraperAsyncService {
       default:
         return Uni.createFrom().item(Collections.emptyList());
     }
-
-//    return Uni.createFrom().item(Collections.emptyList());
   }
 
   public Uni<Job> scrapeJobAsync(String url) {
