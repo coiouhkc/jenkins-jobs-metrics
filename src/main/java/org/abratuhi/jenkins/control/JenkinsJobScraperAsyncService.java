@@ -46,6 +46,9 @@ public class JenkinsJobScraperAsyncService {
   @ConfigProperty(name = "jenkins.cookie")
   String jenkinsCookie;
 
+  @ConfigProperty(name = "jenkins.https", defaultValue = "false")
+  boolean isHttps;
+
   private WebClient client;
 
   @PostConstruct
@@ -172,7 +175,7 @@ public class JenkinsJobScraperAsyncService {
   }
 
   private String sanitizeUrl(String url) {
-    final String prefix = "https://" + jenkinsBaseUrl;
+    final String prefix = (isHttps ? "https://" : "http://") + jenkinsBaseUrl + ":" + jenkinsPort;
     url = url.startsWith(prefix) ? url.substring(prefix.length()) : url;
     return url.replaceAll("//", "/");
   }

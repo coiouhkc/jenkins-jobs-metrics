@@ -27,7 +27,7 @@ public class JenkinsJobScraperAsyncServiceTest {
        service
           .scrapeBuildAsync("/build/1/api/json")
           .await()
-          .indefinitely();
+          .atMost(Duration.ofSeconds(5));
 
     assertNotNull(build1);
     assertEquals(1, build1.getNumber());
@@ -39,7 +39,7 @@ public class JenkinsJobScraperAsyncServiceTest {
        service
           .scrapeJobAsync("/job/1/api/json")
           .await()
-          .indefinitely();
+          .atMost(Duration.ofSeconds(5));
 
     assertNotNull(job1);
     assertNotNull(job1.getBuilds());
@@ -56,7 +56,7 @@ public class JenkinsJobScraperAsyncServiceTest {
        service
           .scrapeFolderAsync("/folder/1/api/json")
           .await()
-          .indefinitely();
+          .atMost(Duration.ofSeconds(5));
 
     assertNotNull(jobs);
     assertEquals(0, jobs.size());
