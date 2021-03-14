@@ -122,14 +122,7 @@ public class JenkinsJobScraperAsyncService {
 
   public CompletableFuture<Build> scrapeBuildAsync(String url) {
     return scrapeJenkinsUrlAsync(url)
-       .thenApplyAsync(json ->
-          Build.builder()
-             .duration(json.getLong("duration"))
-             .number(json.getInteger("number"))
-             .timestamp(json.getLong("timestamp"))
-             .url(json.getString("url"))
-             .result(json.getString("result"))
-             .build());
+       .thenApplyAsync(JenkinsModelMapper::mapBuild);
 
   }
 

@@ -101,14 +101,7 @@ public class JenkinsJobScraperSyncService {
 
   public Build scrapeBuild(String url) {
     JsonObject json = scrapeJenkinsUrl(url);
-
-    return Build.builder()
-       .duration(json.getLong("duration"))
-       .number(json.getInteger("number"))
-       .timestamp(json.getLong("timestamp"))
-       .url(json.getString("url"))
-       .result(json.getString("result"))
-       .build();
+    return JenkinsModelMapper.mapBuild(json);
   }
 
   private JsonObject scrapeJenkinsUrl(String url) {
