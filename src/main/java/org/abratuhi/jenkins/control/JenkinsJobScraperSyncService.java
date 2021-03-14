@@ -25,6 +25,9 @@ public class JenkinsJobScraperSyncService {
   @Inject
   Vertx vertx;
 
+  @Inject
+  JenkinsUrlSanitizer jenkinsUrlSanitizer;
+
   @ConfigProperty(name = "jenkins.base-url")
   String jenkinsBaseUrl;
 
@@ -109,18 +112,11 @@ public class JenkinsJobScraperSyncService {
   }
 
   private JsonObject scrapeJenkinsUrl(String url) {
-    final String sanitizedUrl = sanitizeUrl(url);
+    final String sanitizedUrl = jenkinsUrlSanitizer.sanitizeUrl(url);
     return client
        .get(sanitizedUrl)
        .putHeader("Cookie", jenkinsCookie)
        .sendAndAwait()
        .bodyAsJsonObject();
   }
-
-  private String sanitizeUrl(String url) {
-    final String prefix = (isHttps ? "https://" : "http://") + jenkinsBaseUrl + ":" + jenkinsPort;
-    url = url.startsWith(prefix) ? url.substring(prefix.length()) : url;
-    return url.replaceAll("//", "/");
-  }
-
 }

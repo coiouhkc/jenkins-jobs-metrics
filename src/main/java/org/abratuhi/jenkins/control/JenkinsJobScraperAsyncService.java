@@ -30,6 +30,9 @@ public class JenkinsJobScraperAsyncService {
   @Inject
   Vertx vertx;
 
+  @Inject
+  JenkinsUrlSanitizer jenkinsUrlSanitizer;
+
   @ConfigProperty(name = "jenkins.base-url")
   String jenkinsBaseUrl;
 
@@ -131,7 +134,7 @@ public class JenkinsJobScraperAsyncService {
   }
 
   private CompletableFuture<JsonObject> scrapeJenkinsUrlAsync(String url) {
-    final String sanitizedUrl = sanitizeUrl(url);
+    final String sanitizedUrl = jenkinsUrlSanitizer.sanitizeUrl(url);
     log.infov("scrapeJenkinsUrlAsync: {1} (was: {0})", url, sanitizedUrl);
     return client
        .get(sanitizedUrl)
@@ -141,16 +144,6 @@ public class JenkinsJobScraperAsyncService {
        .transform(HttpResponse::bodyAsJsonObject)
        .subscribe()
        .asCompletionStage();
-  }
-
-  private String sanitizeUrl(String url) {
-    final List<String> prefixes = List.of(
-       (isHttps ? "https://" : "http://") + jenkinsBaseUrl + ":" + jenkinsPort,
-       (isHttps ? "https://" : "http://") + jenkinsBaseUrl);
-    for (String prefix : prefixes) {
-      url = url.startsWith(prefix) ? url.substring(prefix.length()) : url;
-    }
-    return url.replaceAll("//", "/");
   }
 
 }
