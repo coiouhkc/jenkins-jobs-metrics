@@ -144,8 +144,12 @@ public class JenkinsJobScraperAsyncService {
   }
 
   private String sanitizeUrl(String url) {
-    final String prefix = (isHttps ? "https://" : "http://") + jenkinsBaseUrl + ":" + jenkinsPort;
-    url = url.startsWith(prefix) ? url.substring(prefix.length()) : url;
+    final List<String> prefixes = List.of(
+       (isHttps ? "https://" : "http://") + jenkinsBaseUrl + ":" + jenkinsPort,
+       (isHttps ? "https://" : "http://") + jenkinsBaseUrl);
+    for (String prefix : prefixes) {
+      url = url.startsWith(prefix) ? url.substring(prefix.length()) : url;
+    }
     return url.replaceAll("//", "/");
   }
 
