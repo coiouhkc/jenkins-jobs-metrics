@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -142,6 +143,30 @@ public class MutinyPlayground {
     );
 
     List<Integer> result = u2.await().indefinitely();
+
+    assertNotNull(result);
+    assertEquals(100, result.size());
+  }
+
+  @Test
+  void smth4() {
+    Uni<List<Integer>> u1 =
+       Uni.createFrom().item(1)
+          .map(integer ->
+             IntStream.rangeClosed(0, 9)
+                .boxed()
+                .map(i -> Uni.createFrom().item(
+                   IntStream.rangeClosed(i * 10, i * 10 + 9)
+                      .boxed()
+                      .collect(Collectors.toList())
+                ))
+                .map(uni -> uni.subscribe().asCompletionStage())
+                .map(CompletableFuture::join)
+                .flatMap(Collection::stream)
+                .collect(Collectors.toList())
+          );
+
+    List<Integer> result = u1.await().indefinitely();
 
     assertNotNull(result);
     assertEquals(100, result.size());
