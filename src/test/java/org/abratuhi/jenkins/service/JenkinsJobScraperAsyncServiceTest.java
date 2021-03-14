@@ -9,8 +9,8 @@ import org.abratuhi.jenkins.model.Job;
 import org.junit.jupiter.api.Test;
 
 import javax.inject.Inject;
-import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -22,24 +22,22 @@ public class JenkinsJobScraperAsyncServiceTest {
   JenkinsJobScraperAsyncService service;
 
   @Test
-  void scrapeBuildAsync() {
+  void scrapeBuildAsync() throws ExecutionException, InterruptedException {
     Build build1 =
        service
           .scrapeBuildAsync("/build/1/api/json")
-          .await()
-          .atMost(Duration.ofSeconds(5));
+          .get();
 
     assertNotNull(build1);
     assertEquals(1, build1.getNumber());
   }
 
   @Test
-  void scrapeJobAsync() {
+  void scrapeJobAsync() throws ExecutionException, InterruptedException {
     Job job1 =
        service
           .scrapeJobAsync("/job/1/api/json")
-          .await()
-          .atMost(Duration.ofSeconds(5));
+          .get();
 
     assertNotNull(job1);
     assertNotNull(job1.getBuilds());
@@ -51,36 +49,33 @@ public class JenkinsJobScraperAsyncServiceTest {
   }
 
   @Test
-  void scrapeFolderEmptyAsync() {
+  void scrapeFolderEmptyAsync() throws ExecutionException, InterruptedException {
     List<Job> jobs =
        service
           .scrapeFolderAsync("/folder/1/api/json")
-          .await()
-          .atMost(Duration.ofSeconds(5));
+          .get();
 
     assertNotNull(jobs);
     assertEquals(0, jobs.size());
   }
 
   @Test
-  void scrapeFolderWSubfolderWoJobsAsync() {
+  void scrapeFolderWSubfolderWoJobsAsync() throws ExecutionException, InterruptedException {
     List<Job> jobs =
        service
           .scrapeFolderAsync("/folder/3/api/json")
-          .await()
-          .atMost(Duration.ofSeconds(5));
+          .get();
 
     assertNotNull(jobs);
     assertEquals(0, jobs.size());
   }
 
   @Test
-  void scrapeFolderWoSubfolderWJobsAsync() {
+  void scrapeFolderWoSubfolderWJobsAsync() throws ExecutionException, InterruptedException {
     List<Job> jobs =
        service
           .scrapeFolderAsync("/folder/2/api/json")
-          .await()
-          .atMost(Duration.ofSeconds(5));
+          .get();
 
     assertNotNull(jobs);
     assertEquals(1, jobs.size());

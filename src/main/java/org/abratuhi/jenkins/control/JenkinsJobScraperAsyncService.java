@@ -1,6 +1,5 @@
 package org.abratuhi.jenkins.control;
 
-import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.client.WebClientOptions;
 import io.vertx.mutiny.core.Vertx;
@@ -17,6 +16,7 @@ import javax.inject.Inject;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @JBossLog
@@ -24,8 +24,9 @@ import java.util.stream.Collectors;
 public class JenkinsJobScraperAsyncService {
   public static final String CLASS_FOLDER = "com.cloudbees.hudson.plugins.folder.Folder";
   public static final String CLASS_JOB = "org.jenkinsci.plugins.workflow.job.WorkflowJob";
+  //  public static final String CLASS_JOB = "hudson.model.FreeStyleProject";
   public static final String CLASS_BUILD = "org.jenkinsci.plugins.workflow.job.WorkflowRun";
-
+  //  public static final String CLASS_BUILD = "hudson.model.FreeStyleBuild";
   @Inject
   Vertx vertx;
 
@@ -60,80 +61,65 @@ public class JenkinsJobScraperAsyncService {
           .setTrustAll(true));
   }
 
-  public Uni<List<Job>> scrapeRootAsync(String url) {
+  public CompletableFuture<List<Job>> scrapeRootAsync(String url) {
     return scrapeFolderAsync(url);
   }
 
-  public Uni<List<Job>> scrapeFolderAsync(String url) {
-    Uni<JsonObject> jsonObjectUni = scrapeJenkinsUrlAsync(url);
+  public CompletableFuture<List<Job>> scrapeFolderAsync(String url) {
+    CompletableFuture<JsonObject> jsonObjectUni = scrapeJenkinsUrlAsync(url);
 
-    Uni<List<Uni<List<Job>>>> uniListUniListJob = jsonObjectUni
-       .map(jsonObject -> jsonObject.getJsonArray("jobs").stream()
+    CompletableFuture<List<Job>> uniListJob = jsonObjectUni
+       .thenApplyAsync(jsonObject -> jsonObject.getJsonArray("jobs").stream()
           .map(o -> (JsonObject) o)
           .map(this::mapJsonObject)
+          .map(CompletableFuture::join)
+          .flatMap(Collection::stream)
           .collect(Collectors.toList()));
-
-    Uni<List<Job>> uniListJob = uniListUniListJob.flatMap(unis ->
-       Uni.combine().all().unis(unis)
-          .combinedWith(objects ->
-             (List<List<Job>>) objects)
-          .map(lists -> lists.stream()
-             .flatMap(Collection::stream)
-             .collect(Collectors.toList()))
-    );
 
     return uniListJob;
   }
 
-  private Uni<List<Job>> mapJsonObject(final JsonObject job) {
+  private CompletableFuture<List<Job>> mapJsonObject(final JsonObject job) {
     final String nextUrl = job.getString("url") + jenkinsApiSuffix;
     switch (job.getString("_class")) {
       case CLASS_FOLDER:
         return scrapeFolderAsync(nextUrl);
       case CLASS_JOB:
         return scrapeJobAsync(nextUrl)
-           .map(Collections::singletonList);
+           .thenApplyAsync(Collections::singletonList);
       default:
-        return Uni.createFrom().item(Collections.emptyList());
+        return CompletableFuture.completedFuture(Collections.emptyList());
     }
   }
 
-  public Uni<Job> scrapeJobAsync(String url) {
-    Uni<JsonObject> jsonObjectUni = scrapeJenkinsUrlAsync(url);
+  public CompletableFuture<Job> scrapeJobAsync(String url) {
+    CompletableFuture<JsonObject> jsonObjectUni = scrapeJenkinsUrlAsync(url);
 
-    Uni<List<Uni<Build>>> uniListUniBuild = jsonObjectUni
-       .map(jsonObject ->
+    CompletableFuture<List<Build>> uniListUniBuild = jsonObjectUni
+       .thenApplyAsync(jsonObject ->
           jsonObject
              .getJsonArray("builds")
              .stream()
              .map(o -> (JsonObject) o)
              .filter(obj -> obj.getString("_class").equals(CLASS_BUILD))
              .map(build -> scrapeBuildAsync(build.getString("url") + jenkinsApiSuffix))
+             .map(CompletableFuture::join)
              .collect(Collectors.toList()));
 
-    Uni<List<Build>> uniListBuild = uniListUniBuild.flatMap(unis ->
-       Uni.combine().all().unis(unis)
-          .combinedWith(objects ->
-             objects.stream()
-                .map(o -> (Build) o)
-                .collect(Collectors.toList()))
-    );
-
-    return Uni.combine().all().unis(
-       jsonObjectUni,
-       uniListBuild)
-       .asTuple()
-       .map(jsonPlusBuilds ->
-          Job.builder()
-             .fullName(jsonPlusBuilds.getItem1().getString("fullName"))
-             .url(jsonPlusBuilds.getItem1().getString("url"))
-             .builds(jsonPlusBuilds.getItem2())
-             .build());
+    return jsonObjectUni
+       .thenCombineAsync(
+          uniListUniBuild,
+          (jsonObject, builds) ->
+             Job.builder()
+                .fullName(jsonObject.getString("fullName"))
+                .url(jsonObject.getString("url"))
+                .builds(builds)
+                .build());
   }
 
-  public Uni<Build> scrapeBuildAsync(String url) {
+  public CompletableFuture<Build> scrapeBuildAsync(String url) {
     return scrapeJenkinsUrlAsync(url)
-       .map(json ->
+       .thenApplyAsync(json ->
           Build.builder()
              .duration(json.getLong("duration"))
              .number(json.getInteger("number"))
@@ -144,19 +130,26 @@ public class JenkinsJobScraperAsyncService {
 
   }
 
-  private Uni<JsonObject> scrapeJenkinsUrlAsync(String url) {
+  private CompletableFuture<JsonObject> scrapeJenkinsUrlAsync(String url) {
     final String sanitizedUrl = sanitizeUrl(url);
     log.infov("scrapeJenkinsUrlAsync: {1} (was: {0})", url, sanitizedUrl);
     return client
        .get(sanitizedUrl)
        .putHeader("Cookie", jenkinsCookie)
        .send()
-       .onItem().transform(HttpResponse::bodyAsJsonObject);
+       .onItem()
+       .transform(HttpResponse::bodyAsJsonObject)
+       .subscribe()
+       .asCompletionStage();
   }
 
   private String sanitizeUrl(String url) {
-    final String prefix = (isHttps ? "https://" : "http://") + jenkinsBaseUrl + ":" + jenkinsPort;
-    url = url.startsWith(prefix) ? url.substring(prefix.length()) : url;
+    final List<String> prefixes = List.of(
+       (isHttps ? "https://" : "http://") + jenkinsBaseUrl + ":" + jenkinsPort,
+       (isHttps ? "https://" : "http://") + jenkinsBaseUrl);
+    for (String prefix : prefixes) {
+      url = url.startsWith(prefix) ? url.substring(prefix.length()) : url;
+    }
     return url.replaceAll("//", "/");
   }
 
